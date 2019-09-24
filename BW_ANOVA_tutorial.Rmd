@@ -1,0 +1,98 @@
+---
+title: "Fundamentals of F distribution and ANOVAs"
+output: html_notebook
+---
+###[The F distribution and the basic principle behind ANOVAs](http://bodowinter.com/tutorial/bw_anova_general.pdf)
+```{r}
+set.seed(46)
+females = rnorm(4, mean=200, sd=20) 
+males = rnorm(4, mean=120, sd=20) 
+kidz = rnorm(4, mean=380, sd=20) 
+pitchstudy = data.frame(females, males, kidz)
+pitchstudy
+```
+At the heart of the ANOVA is the F-test, and the F-value is a ratio of two variances – the “between group” variance and the “within-group” variance such that Total Variance = Betweengroups + Withingroups.  Here, it becomes clear why some people call the withingroup variance “residual variance”: if you subtract the between-group variance or your “effect variance”, then what’s left (the “residual”) is the within-group variance.
+
+###Two ways to calculate the variance
+
+The variance (the statistical characterization of the everyday concept of “variation”) is defined as 
+Variance = Sum of squares / Degrees of freedom
+The “sum of squares” is shorthand for saying the sum of squared deviations from the mean. There are two ways to calculate sum of squares (the numerator), so there are two different variance formulas. 
+The first *the sum of squared deviations from the mean*
+```{r}
+sum((females-mean(females))^2)
+sum(females^2)-(sum(females)^2)/4
+```
+With the second formula, we can simply calculate the sum of squares with sum(vector^2) of whatever part of the data we’re looking at, and then we can subtract the so-called “correction factor” (sum(vector)^2/n) which is going to remain constant for the whole ANOVA computation.
+
+Let’s start by calculating the total variance.
+```{r}
+bigvector = c(females, males, kidz)
+
+```
+Then calculate the correction factor.
+```{r}
+CF = (sum(bigvector))^2/length(bigvector)
+
+```
+Then calculate the “total sum of squares” (the numerator of the variance formula).
+```{r}
+total.ss = sum(bigvector^2)-CF
+```
+```{r}
+between.ss = (sum(females)^2)/4 + (sum(males)^2)/4 + (sum(kidz)^2)/4 - CF
+```
+
+```{r}
+within.ss = total.ss - between.ss
+
+```
+To finish our calculation of the variance, we need to calculate the denominators for all the variances; the denominators will be the respective degrees of freedom. The total degrees of freedom is simply the number of all data points (=length(bigvector)) minus 1.
+```{r}
+df.total = length(bigvector)-1
+```
+The degrees of freedom for the between-groups variance is the number of columns (= the number of groups) minus one.
+```{r}
+df.between = ncol(pitchstudy)-1
+```
+The within-groups degrees of freedom is the total degrees of freedom minus the between-groups degrees of freedom.
+```{r}
+df.within = df.total-df.between
+```
+To estimage the *variance*, calculate the _mean squares_ or the sum of squares divided by the respective degrees of freedom.
+```{r}
+between.ms = between.ss/df.between 
+within.ms = within.ss/df.within
+```
+the F-value is the ratio of the between-group mean squares and the within-group mean squares.
+```{r}
+F.value = between.ms/within.ms
+```
+The last thing to do is to see how unlikely the Fvalue that we obtained is given the degrees of freedom that we have. This is actually the only part that is actually “inferential statistics” and not just descriptive statistics. What we’re doing here is looking at the theoretical F distribution for the degrees of freedom 2 (the between-group df) and 9 (the within-group df)… and then we’re trying to locate our F value on this distribution.
+```{r}
+(1-pf(F.value,df.between,df.within))
+
+```
+
+```{r}
+groups = c(rep("female",4),rep("male",4),rep("kidz",4))
+pitchstudy = data.frame(subjects=as.factor(c(1:12)),groups,bigvector)
+colnames(pitchstudy) = c("subjects","groups","bigvector")
+summary(pitchstudy)
+summary(aov(bigvector ~ groups + Error(subjects), data=pitchstudy))
+```
+
+```{r}
+library(car)
+Anova(lm(bigvector ~ groups, data=pitchstudy))
+```
+
+```{r}
+library(ez)
+ezANOVA(pitchstudy, dv=bigvector, 
+        wid=.(subjects), 
+        between=groups,
+        detailed=TRUE, type="II")
+```
+
+
